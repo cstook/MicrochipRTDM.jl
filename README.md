@@ -24,7 +24,7 @@ Create a dictionary of symbols from the .map file.
 projectdirectory = "your_project_directory.x"
 mapdict = microchip_parsemap(projectdirectory,"production")
 ```
-The second parameter is either "production" or "debug".  You can also pass the .map file instead of the project directory.  In this case the second parameter is ignored.
+The second parameter is either "production" or "debug".  It will default to "production" if unspecified.  You can also pass the .map file instead of the project directory.  In this case the second parameter is ignored.
 
 The following assumes a serial port is opened as io.  One way to do this is to use [FTD2XX.jl](https://github.com/cstook/FTD2XX.jl).
 
