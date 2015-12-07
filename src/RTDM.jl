@@ -11,21 +11,21 @@ function checkforerrorcode(io::IO)
   replycode = read(io,UInt8)
   crc = rtdm_crc(crc,replycode)
   if replycode != UInt8('+')  
-    errorbuffer = Array(UInt8,5)
-    read!(io,errorbuffer)
+    errorbuffer = Array(UInt8,4)      
+    read!(io,errorbuffer) 
     crc = rtdm_crc(crc,errorbuffer)
-    crcbuffer = Array(UInt16,1)
-    read!(io,crcbuffer)
+    replycrc = read(io,UInt16)
     if errorbuffer[1] != UInt8('$')
       errorcode = -1
     elseif errorbuffer[2] != UInt8('E')
       errorcode = -1
-    elseif errorbuffer[5] != UInt8('#')
+    elseif errorbuffer[4] != UInt8('#')
       errorcode = -1
-    elseif crc != crcbuffer
+    elseif crc != replycrc
       errorcode = -2
-    else # don't know how to test this error, hope it works.
-      error("RTDM Error: target responded with errror code: ", bytestring(errorbuffer[2:4]))
+    else
+      errorcode = errorbuffer
+      error("RTDM Error: target responded with errror code: ", errorbuffer[3])   # change to real error processing
     end
   end
   return (errorcode,crc)
@@ -58,7 +58,7 @@ function isrtdmok(io::IO; retry = 1)
 end
 
 function rtdm_read!{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
-  const startreadrequest = b"$m"
+  const startreadrequest =  b"$m"
   const endofmessage = b"#"
   const startreadreply =b"$"
   address32 = convert(UInt32,address)

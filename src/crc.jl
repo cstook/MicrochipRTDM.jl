@@ -14,8 +14,8 @@ function rtdm_crc{T}(crc::UInt16, dataarray::Array{T})
       byte >>>=1
     end
   end
-  return crc
+  return crc::UInt16
 end
 
 rtdm_crc(data) = rtdm_crc(0xffff,data)  # or call with one parameter to start
-rtdm_crc(crc::UInt16, data) = rtdm_crc(crc,[data])
+rtdm_crc(crc::UInt16, data) = rtdm_crc(crc::UInt16,[data])
