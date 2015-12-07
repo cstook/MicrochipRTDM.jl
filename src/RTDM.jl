@@ -4,7 +4,7 @@ include("crc.jl")
 function checkforerrorcode(io::IO)
   # errorcode = 0   no error
   # errorcode < 0   somthing bad happened, might want to retry command
-  # Throw error if target replies with error code.  No point in retrying in this case.
+  # errorcode > 0   error code returned by target
   # returns errorcode and crc up to this point
   crc = 0xffff
   errorcode = 0
@@ -24,8 +24,7 @@ function checkforerrorcode(io::IO)
     elseif crc != replycrc
       errorcode = -2
     else
-      errorcode = errorbuffer
-      error("RTDM Error: target responded with errror code: ", errorbuffer[3])   # change to real error processing
+      errorcode = convert(Int,errorbuffer[3])
     end
   end
   return (errorcode,crc)
@@ -87,16 +86,14 @@ function rtdm_read!{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
       crc = rtdm_crc(crc, endcode)
       replycrc = read(io, UInt16)
       if replycrc != crc
-        errorcode = -3
+        errorcode = -4
       end
     end
     if errorcode == 0 
       break
     end
   end
-  if errorcode != 0 
-    error("RTDM error: rtdm_read!() failed ",retry," tries")
-  end
+  checkerrorcode(errorcode,retry)
   return nothing
 end
 
@@ -137,16 +134,14 @@ function rtdm_write{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
       #crc = rtdm_crc(crc, replybuffer) # don't need this
       replycrc = read(io, UInt16)
       if replyokcrc != replycrc
-        errorcode = -3
+        errorcode = -5
       end
     end
     if errorcode != 0 
       break
     end
   end
-  if errorcode != 0 
-    error("RTDM error: rtdm_write() failed ",retry," tries")
-  end
+  checkerrorcode(errorcode,retry)
   return nothing
 end
 
