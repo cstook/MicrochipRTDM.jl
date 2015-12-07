@@ -17,5 +17,5 @@ function rtdm_crc{T}(crc::UInt16, dataarray::Array{T})
   return crc
 end
 
-rtdm_crc(data) = rtdm_crc(0xffff,data)
+rtdm_crc(data) = rtdm_crc(0xffff,data)  # or call with one parameter to start
 rtdm_crc(crc::UInt16, data) = rtdm_crc(crc,[data])
