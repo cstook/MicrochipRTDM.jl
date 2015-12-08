@@ -3,14 +3,14 @@ export rtdm_write, rtdm_read, rtdm_read!, isrtdmok
 include("crc.jl")
 function checkforerrorcode(io::IO)
   # errorcode = 0   no error
-  # errorcode < 0   somthing bad happened, might want to retry command
-  # errorcode > 0   error code returned by target
+  # errorcode < 0   somthing wrong with received message. from this module.
+  # errorcode > 0   error code returned by target.  from microcontroller.
   # returns errorcode and crc up to this point
   crc = 0xffff
   errorcode = 0
   replycode = read(io,UInt8)
   crc = rtdm_crc(crc,replycode)
-  if replycode != UInt8('+')  
+  if replycode != UInt8('+')
     errorbuffer = Array(UInt8,4)      
     read!(io,errorbuffer) 
     crc = rtdm_crc(crc,errorbuffer)
@@ -30,10 +30,11 @@ function checkforerrorcode(io::IO)
   return (errorcode,crc)
 end
 
+const communication_link_sanity_check = b"$s#"
+const linkok = b"$RTDM#"
+const clsc_replybuffer = Array(UInt8,length(linkok))
+
 function isrtdmok(io::IO; retry = 1)
-  const communication_link_sanity_check = b"$s#"
-  const linkok = b"$RTDM#"
-  const replybuffer = Array(UInt8,length(linkok))
   errorcode = -99
   for i in 1:retry
     crc = 0xffff
@@ -41,9 +42,9 @@ function isrtdmok(io::IO; retry = 1)
     write(io,rtdm_crc(crc, communication_link_sanity_check))
     (errorcode,crc) = checkforerrorcode(io)
     if errorcode == 0
-      replybuffer[6] = 0x00  # make sure we actualy read the value
-      read!(io,replybuffer)
-      crc = rtdm_crc(crc,replybuffer)
+      clsc_replybuffer[6] = 0x00  # make sure we actualy read the value
+      read!(io,clsc_replybuffer)
+      crc = rtdm_crc(crc,clsc_replybuffer)
       replycrc = read(io,UInt16)
       if replycrc != crc
         errorcode = -3
