@@ -44,7 +44,7 @@ function microchip_parsemap(filenameorprojectdirectory::ASCIIString, maptype::AS
     while m!=nothing  && ~eof(iofile)
       address = m.captures[1]
       name = m.captures[2]
-      push!(symboldict,name=>parse(UInt16,address,16))
+      push!(symboldict,name=>parse(UInt32,address,16))
       line = readline(iofile)
       m = match(r"0x([0-9a-f]{4,4})\s*_(\S*)",line)
     end

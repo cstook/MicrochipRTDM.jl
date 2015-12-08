@@ -32,7 +32,7 @@ end
 
 const communication_link_sanity_check = b"$s#"
 const linkok = b"$RTDM#"
-const clsc_replybuffer = Array(UInt8,length(linkok))
+const clsc_writereplybuffer = Array(UInt8,length(linkok))
 
 function isrtdmok(io::IO; retry = 1)
   errorcode = -99
@@ -42,9 +42,9 @@ function isrtdmok(io::IO; retry = 1)
     write(io,rtdm_crc(crc, communication_link_sanity_check))
     (errorcode,crc) = checkforerrorcode(io)
     if errorcode == 0
-      clsc_replybuffer[6] = 0x00  # make sure we actualy read the value
-      read!(io,clsc_replybuffer)
-      crc = rtdm_crc(crc,clsc_replybuffer)
+      clsc_writereplybuffer[end] = 0x00  # make sure we actualy read the value
+      read!(io,clsc_writereplybuffer)
+      crc = rtdm_crc(crc,clsc_writereplybuffer)
       replycrc = read(io,UInt16)
       if replycrc != crc
         errorcode = -3
@@ -57,10 +57,10 @@ function isrtdmok(io::IO; retry = 1)
   return errorcode == 0
 end
 
+const startreadrequest =  b"$m"
+const endofmessage = b"#"
+const startreadreply =b"$"
 function rtdm_read!{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
-  const startreadrequest =  b"$m"
-  const endofmessage = b"#"
-  const startreadreply =b"$"
   address32 = convert(UInt32,address)
   buffersize16 = UInt16(sizeof(buffer))
   errorcode = -99
@@ -104,13 +104,14 @@ function rtdm_read{T}(io::IO, ::Type{T}, address::Integer; retry = 1)
   return buffer[1]
 end
 
+const startwrite = b"$M"
+const endofwrite = b"#"
+# const replyok = b"$OK#"
+const replyokcrc = rtdm_crc(b"+$OK#")
+const writereplybuffer = Array(UInt8,4)
+
 function rtdm_write{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
-  const startwrite = b"$M"
-  const endofwrite = b"#"
-  const replyok = b"$OK#"
-  const replyokcrc = rtdm_crc(b"+$OK#")
-  replybuffer = Array(UInt8,4)
-  address32 = convert(UInt32,address)
+  address32 = UInt32(address)
   buffersize16 = UInt16(sizeof(buffer))
   errorcode = -99
   for i in 1:retry
@@ -130,9 +131,9 @@ function rtdm_write{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
     # process reply
     (errorcode,crc) = checkforerrorcode(io)
     if errorcode == 0
-      replybuffer[4] = 0x00
-      read!(io, replybuffer)
-      #crc = rtdm_crc(crc, replybuffer) # don't need this
+      writereplybuffer[4] = 0x00
+      read!(io, writereplybuffer)
+      #crc = rtdm_crc(crc, writereplybuffer) # don't need this
       replycrc = read(io, UInt16)
       if replyokcrc != replycrc
         errorcode = -5

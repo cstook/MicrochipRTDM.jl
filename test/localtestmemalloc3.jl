@@ -8,7 +8,9 @@ mapdict = microchip_parsemap(projectdirectory,"production")
 uartconfig1 = UARTConfiguration(921600,8,1,"n",readtimeout = 1000,writetimeout = 1000)
 io = open(FT_DeviceIndex(0),uartconfig1)
 
-f() = for i in 1:1000; isrtdmok(io); end
+const address = UInt32(mapdict["offsetP3"])
+const buffer = [0x1234]
+f() = for i in 1:100; rtdm_write(io, buffer, address); end
 f()
 
 
