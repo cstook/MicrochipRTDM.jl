@@ -1,7 +1,5 @@
 export rtdm_write, rtdm_read, rtdm_read!, isrtdmok, RTDMInterface
 
-# include("crc.jl")
-
 type CRC
   crc  :: UInt16 # running crc
   data :: UInt8  # input byte for bit shifting
@@ -34,6 +32,11 @@ immutable RTDMInterface
       Array(UInt8,1), Array(UInt8,4), Array(UInt8,6),
       Array(UInt16,1), CRC(0xffff,0x00))
   end
+end
+
+function Base.close(i::RTDMInterface)
+  close(i.iouart)
+  close(i.iopipe)
 end
 
 function pipecrc!(i::RTDMInterface, data)
@@ -86,7 +89,7 @@ function checkforerrorcode(i::RTDMInterface)
   replycode = readwithcrc(i,UInt8)
   if replycode != 0x2b  # '+'
     readwithcrc!(i, i.buffer4)
-    readwithcrc!(i, i.buffercrc[1], computecrc = false)
+    readwithcrc!(i, i.buffercrc, computecrc = false)
     if i.buffer4[1] != 0x24 # '$'
       errorcode = -1
     elseif i.buffer4[2] != 0x45 # 'E'
@@ -229,7 +232,31 @@ function rtdm_write{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; ret
 end
 
 function rtdm_write(i::RTDMInterface, data, address::Integer; retry = 1)
-  buffer = [data]
-  rtdm_write(i, buffer, address, retry=retry)
+  address32 = UInt32(address)
+  buffersize16 = UInt16(sizeof(data))
+  errorcode = -99
+  for attempt in 1:retry
+    resetcrc!(i)
+    # write memory
+    writewithcrc(i, startwrite)
+    writewithcrc(i, address32)
+    writewithcrc(i, buffersize16)
+    writewithcrc(i, data)
+    writewithcrc(i, endofwrite)
+    writewithcrc(i, getcrc(i), computecrc = false)
+    # process reply
+    errorcode = checkforerrorcode(i)
+    if errorcode == 0
+      readwithcrc!(i, i.buffer4)
+      readwithcrc!(i, i.buffercrc, computecrc = false)
+      if getcrc(i) != i.buffercrc[1]
+        errorcode = -5
+      end
+    end
+    if errorcode != 0 
+      break
+    end
+  end
+  checkerrorcode(errorcode,retry)
   return nothing
 end
