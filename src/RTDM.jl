@@ -34,6 +34,13 @@ immutable RTDMInterface
   end
 end
 
+function Base.show(io::IO, x::RTDMInterface)
+  println(io, "Dict{Symbol,UInt32} with ",length(x.address)," entries")
+  show(io, x.iouart)
+  return nothing
+end
+
+
 function Base.close(i::RTDMInterface)
   close(i.iouart)
   close(i.iopipe)
