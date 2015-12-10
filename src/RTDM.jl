@@ -86,14 +86,14 @@ function checkforerrorcode(i::RTDMInterface)
   replycode = readwithcrc(i,UInt8)
   if replycode != 0x2b  # '+'
     readwithcrc!(i, i.buffer4)
-    crc = readwithcrc(i, UInt16, computecrc = false)
+    readwithcrc!(i, i.buffercrc, computecrc = false)
     if i.buffer4[1] != 0x24 # '$'
       errorcode = -1
     elseif i.buffer4[2] != 0x45 # 'E'
       errorcode = -1
     elseif i.buffer4[4] != 0x23 # '#'
       errorcode = -1
-    elseif crc != getcrc(i)
+    elseif i.buffercrc != getcrc(i)
       errorcode = -2
     else
       errorcode = convert(Int,i.buffer4[3])
@@ -116,7 +116,7 @@ function isrtdmok(i::RTDMInterface; retry = 1)
     errorcode = checkforerrorcode(i)
     if errorcode == 0
       readwithcrc!(i, i.buffer6)
-      readwithcrc!(i, i.buffercrc)
+      readwithcrc!(i, i.buffercrc, computecrc = false)
       if getcrc(i) != i.buffercrc # did crc match?
         errorcode = -3
       end
