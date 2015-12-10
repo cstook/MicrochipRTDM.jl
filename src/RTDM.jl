@@ -24,6 +24,7 @@ immutable RTDMInterface
   address :: Dict{ASCIIString,UInt32} # connects symbols to addresses
   iouart  :: IO # serial port microcontroller is connected to
   iopipe  :: IOBuffer # pipe to serialize data for crc and uart
+  buffer1 :: Array{UInt8,1}
   buffer4 :: Array{UInt8,1}
   buffer6 :: Array{UInt8,1}
   buffer20 :: Array{UInt8,1}
@@ -31,7 +32,8 @@ immutable RTDMInterface
   crc :: CRC
   function RTDMInterface(addressdict::Dict{ASCIIString,UInt32}, iouart::IO)
     new(addressdict, iouart, PipeBuffer(), 
-      Array(UInt8,4), Array(UInt8,6), Array(UInt8,20),Array(UInt16,1),CRC(0xffff,0x00))
+      Array(UInt8,1), Array(UInt8,4), Array(UInt8,6),
+      Array(UInt8,20),Array(UInt16,1),CRC(0xffff,0x00))
   end
 end
 
@@ -43,7 +45,6 @@ function pipecrc!(i::RTDMInterface, data)
   end
   return nothing
 end
-
 
 function writewithcrc(i::RTDMInterface, data; computecrc = true)
   write(i.iouart,data)
@@ -86,14 +87,14 @@ function checkforerrorcode(i::RTDMInterface)
   replycode = readwithcrc(i,UInt8)
   if replycode != 0x2b  # '+'
     readwithcrc!(i, i.buffer4)
-    readwithcrc!(i, i.buffercrc, computecrc = false)
+    readwithcrc!(i, i.buffercrc[1], computecrc = false)
     if i.buffer4[1] != 0x24 # '$'
       errorcode = -1
     elseif i.buffer4[2] != 0x45 # 'E'
       errorcode = -1
     elseif i.buffer4[4] != 0x23 # '#'
       errorcode = -1
-    elseif i.buffercrc != getcrc(i)
+    elseif i.buffercrc[1] != getcrc(i)
       errorcode = -2
     else
       errorcode = convert(Int,i.buffer4[3])
@@ -108,7 +109,6 @@ const clsc_writereplybuffer = Array(UInt8,length(linkok))
 
 function isrtdmok(i::RTDMInterface; retry = 1)
   errorcode = -99
-  crc = 0x0000
   for attempt in 1:retry
     resetcrc!(i)
     writewithcrc(i, communication_link_sanity_check)
@@ -117,7 +117,7 @@ function isrtdmok(i::RTDMInterface; retry = 1)
     if errorcode == 0
       readwithcrc!(i, i.buffer6)
       readwithcrc!(i, i.buffercrc, computecrc = false)
-      if getcrc(i) != i.buffercrc # did crc match?
+      if getcrc(i) != i.buffercrc[1] # did crc match?
         errorcode = -3
       end
     end
@@ -128,41 +128,30 @@ function isrtdmok(i::RTDMInterface; retry = 1)
   return errorcode == 0
 end
 
-
-#=
-
-
 const startreadrequest =  b"$m"
 const endofmessage = b"#"
 const startreadreply =b"$"
-function rtdm_read{T}(io::IO, ::Type{T}, address::Integer; retry = 1)
+function rtdm_read{T}(i::RTDMInterface, ::Type{T}, address::Integer; retry = 1)
   address32 = convert(UInt32,address)
   buffersize16 = UInt16(sizeof(T))
   errorcode = -99
   data = T(0)
-  for i in 1:retry
-    crc = 0xffff
+  for attempt in 1:retry
+    resetcrc!(i)
     # request read
-    write(io, startreadrequest)
-    crc = rtdm_crc(crc, startreadrequest) 
-    write(io, address32)
-    crc = rtdm_crc(crc, address32)
-    write(io, buffersize16)
-    crc = rtdm_crc(crc, buffersize16)
-    write(io, endofmessage)
-    crc = rtdm_crc(crc, endofmessage)
-    write(io, crc)
+    writewithcrc(i, startreadrequest)
+    writewithcrc(i, address32)
+    writewithcrc(i, buffersize16)
+    writewithcrc(i, endofmessage)
+    writewithcrc(i, getcrc(i), computecrc = false)
     # process reply
-    (errorcode,crc) = checkforerrorcode(io)
+    errorcode = checkforerrorcode(i)
     if errorcode == 0
-      startcode = read(io, UInt8)
-      crc = rtdm_crc(crc, startcode)
-      data = read(io, T)
-      crc = rtdm_crc(crc, data)
-      endcode = read(io, UInt8)
-      crc = rtdm_crc(crc, endcode)
-      replycrc = read(io, UInt16)
-      if replycrc != crc
+      readwithcrc!(i, i.buffer1)  # read start code
+      data = readwithcrc(i, T)
+      readwithcrc!(i, i.buffer1) # read end code
+      readwithcrc!(i, i.buffercrc, computecrc = false)
+      if getcrc(i) != i.buffercrc[1]
         errorcode = -4
       end
     end
@@ -174,58 +163,62 @@ function rtdm_read{T}(io::IO, ::Type{T}, address::Integer; retry = 1)
   return data
 end
 
-#   reinterpret(UInt8, a, (nb,))
-
-const UInt16buffer = Array(UInt16,1)
-function rtdm_read(io::IO, ::Type{UInt16}, address::Integer; retry = 1)
-  rtdm_read!(io, UInt16buffer, address, retry=retry)
-  return UInt16buffer[1]
-end
-
-const buffer2 = Array(UInt8,16)
-function rtdm_read{T}(io::IO, ::Type{T}, address::Integer; retry = 1)
-  if isbits(T)
-    rtdm_read!(io, buffer2[1:sizeof(T)], address, retry=retry)
-    return reinterpret(T,buffer2,(div(16,sizeof(T)),))[1]
-  else
-    buffer = Array(T,1)
-    rtdm_read!(io, buffer, address, retry=retry)
-    return buffer[1]
+function rtdm_read!{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; retry = 1)
+  address32 = convert(UInt32,address)
+  buffersize16 = UInt16(sizeof(buffer))
+  errorcode = -99
+  data = T(0)
+  for attempt in 1:retry
+    resetcrc!(i)
+    # request read
+    writewithcrc(i, startreadrequest)
+    writewithcrc(i, address32)
+    writewithcrc(i, buffersize16)
+    writewithcrc(i, endofmessage)
+    writewithcrc(i, getcrc(i), computecrc = false)
+    # process reply
+    errorcode = checkforerrorcode(i)
+    if errorcode == 0
+      readwithcrc!(i, i.buffer1)  # read start code
+      readwithcrc!(i, buffer)
+      readwithcrc!(i, i.buffer1) # read end code
+      readwithcrc!(i, i.buffercrc, computecrc = false)
+      if getcrc(i) != i.buffercrc[1]
+        errorcode = -4
+      end
+    end
+    if errorcode == 0 
+      break
+    end
   end
+  checkerrorcode(errorcode,retry)
+  return data
 end
 
 const startwrite = b"$M"
 const endofwrite = b"#"
 # const replyok = b"$OK#"
-const replyokcrc = rtdm_crc(b"+$OK#")
-const writereplybuffer = Array(UInt8,4)
+# const replyokcrc = 0x084c # rtdm_crc(b"+$OK#")
 
-function rtdm_write{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
+function rtdm_write{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; retry = 1)
   address32 = UInt32(address)
   buffersize16 = UInt16(sizeof(buffer))
   errorcode = -99
-  for i in 1:retry
-    crc = 0xffff
+  for attempt in 1:retry
+    resetcrc!(i)
     # write memory
-    write(io, startwrite)
-    crc = rtdm_crc(crc, startwrite)
-    write(io, address32)
-    crc = rtdm_crc(crc, address32)
-    write(io, buffersize16)
-    crc = rtdm_crc(crc, buffersize16)
-    write(io, buffer)
-    crc = rtdm_crc(crc, buffer)
-    write(io, endofwrite)
-    crc = rtdm_crc(crc, endofwrite)
-    write(io, crc)
+    writewithcrc(i, startwrite)
+    writewithcrc(i, address32)
+    writewithcrc(i, buffersize16)
+    writewithcrc(i, buffer)
+    writewithcrc(i, endofwrite)
+    writewithcrc(i, getcrc(i), computecrc = false)
     # process reply
-    (errorcode,crc) = checkforerrorcode(io)
+    errorcode = checkforerrorcode(i)
     if errorcode == 0
-      writereplybuffer[4] = 0x00
-      read!(io, writereplybuffer)
-      #crc = rtdm_crc(crc, writereplybuffer) # don't need this
-      replycrc = read(io, UInt16)
-      if replyokcrc != replycrc
+      readwithcrc!(i, i.buffer4)
+      readwithcrc!(i, i.buffercrc, computecrc = false)
+      if getcrc(i) != i.buffercrc[1]
         errorcode = -5
       end
     end
@@ -237,10 +230,8 @@ function rtdm_write{T}(io::IO, buffer::Array{T}, address::Integer; retry = 1)
   return nothing
 end
 
-function rtdm_write(io::IO, data, address::Integer; retry = 1)
+function rtdm_write(i::RTDMInterface, data, address::Integer; retry = 1)
   buffer = [data]
-  rtdm_write(io, buffer, address, retry=retry)
+  rtdm_write(i, buffer, address, retry=retry)
   return nothing
 end
-
-=#
