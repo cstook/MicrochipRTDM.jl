@@ -27,13 +27,12 @@ immutable RTDMInterface
   buffer1 :: Array{UInt8,1}
   buffer4 :: Array{UInt8,1}
   buffer6 :: Array{UInt8,1}
-  buffer20 :: Array{UInt8,1}
   buffercrc :: Array{UInt16,1}
   crc :: CRC
   function RTDMInterface(addressdict::Dict{ASCIIString,UInt32}, iouart::IO)
     new(addressdict, iouart, PipeBuffer(), 
       Array(UInt8,1), Array(UInt8,4), Array(UInt8,6),
-      Array(UInt8,20),Array(UInt16,1),CRC(0xffff,0x00))
+      Array(UInt16,1), CRC(0xffff,0x00))
   end
 end
 
@@ -164,10 +163,9 @@ function rtdm_read{T}(i::RTDMInterface, ::Type{T}, address::Integer; retry = 1)
 end
 
 function rtdm_read!{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; retry = 1)
-  address32 = convert(UInt32,address)
+  address32 = UInt32(address)
   buffersize16 = UInt16(sizeof(buffer))
   errorcode = -99
-  data = T(0)
   for attempt in 1:retry
     resetcrc!(i)
     # request read
@@ -192,7 +190,7 @@ function rtdm_read!{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; ret
     end
   end
   checkerrorcode(errorcode,retry)
-  return data
+  return nothing
 end
 
 const startwrite = b"$M"
