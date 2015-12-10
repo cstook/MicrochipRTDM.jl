@@ -10,10 +10,10 @@ io = open(FT_DeviceIndex(0),uartconfig1)
 const x = zeros(UInt64,10)
 const buffer = Array(UInt8,1)
 function f()
-  i = UInt8(0)
+  i = UInt16(0)
   crc = MicrochipRTDM.rtdm_crc(0xffff,i)
-  for i::UInt8 in 1:255
-    crc = MicrochipRTDM.rtdm_crc(crc,x)
+  for i::UInt16 in 1:255
+    crc = MicrochipRTDM.rtdm_crc(crc,b"asdfg")
   end
 end
 
