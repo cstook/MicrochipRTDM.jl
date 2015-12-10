@@ -19,7 +19,7 @@ function compute_crc(crc::CRC)
 end
 
 immutable RTDMInterface
-  address :: Dict{ASCIIString,UInt32} # connects symbols to addresses
+  address :: Dict{Symbol,UInt32} # connects symbols to addresses
   iouart  :: IO # serial port microcontroller is connected to
   iopipe  :: IOBuffer # pipe to serialize data for crc and uart
   buffer1 :: Array{UInt8,1}
@@ -27,7 +27,7 @@ immutable RTDMInterface
   buffer6 :: Array{UInt8,1}
   buffercrc :: Array{UInt16,1}
   crc :: CRC
-  function RTDMInterface(addressdict::Dict{ASCIIString,UInt32}, iouart::IO)
+  function RTDMInterface(addressdict::Dict{Symbol,UInt32}, iouart::IO)
     new(addressdict, iouart, PipeBuffer(), 
       Array(UInt8,1), Array(UInt8,4), Array(UInt8,6),
       Array(UInt16,1), CRC(0xffff,0x00))
@@ -259,4 +259,18 @@ function rtdm_write(i::RTDMInterface, data, address::Integer; retry = 1)
   end
   checkerrorcode(errorcode,retry)
   return nothing
+end
+
+
+function rtdm_write(i::RTDMInterface, data, address::Symbol; retry = 1)
+  rtdm_write(i, data, i.address[address]; retry = 1)
+end
+function rtdm_write{T}(i::RTDMInterface, buffer::Array{T}, address::Symbol; retry = 1)
+  rtdm_write(i, buffer, i.address[address]; retry = 1)
+end
+function rtdm_read!{T}(i::RTDMInterface, buffer::Array{T}, address::Symbol; retry = 1)
+  rtdm_read!(i, buffer, i.address[address]; retry = 1)
+end
+function rtdm_read{T}(i::RTDMInterface, ::Type{T}, address::Symbol; retry = 1)
+  rtdm_read(i, T, i.address[address]; retry = 1)
 end

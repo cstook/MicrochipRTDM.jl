@@ -28,21 +28,26 @@ The second parameter is either "production" or "debug".  It will default to "pro
 
 The following assumes a serial port is opened as io.  One way to do this is to use [FTD2XX.jl](https://github.com/cstook/FTD2XX.jl).
 
+Create an ```RTDMInterface``` object.
+```julia
+rtdminterface = RTDMInterface(mapdict,io)
+```
+
 The RTDM link can be verifyed.
 ```julia
-isrtdmok(io)
+isrtdmok(rtdminterface)
 ```
 
 The memory of the microcontroller can be read and written with ```rtdm_read```, ```rtdm_read!```, and ```rtdm_write```.
 ```julia
 # read a single unsigned 16 bit integer
-readvalue = rtdm_read(io, UInt16, mapdict["your_symbol_name"],retry = 3)
+readvalue = rtdm_read(rtdminterface, UInt16, :your_symbol_name,retry = 3)
 
 # read 128 unsigned 16 bit integers
 bufffer = Array(UInt16,128)
-rtdm_read!(io, buffer, mapdict["your_symbol_name"])
+rtdm_read!(rtdminterface, buffer, :your_symbol_name)
 
-rtdm_write(io, 0x1234, mapdict["your_symbol_name"]) # write 16 bit value
-rtdm_write(io, 0x12,   mapdict["your_symbol_name"]) # write 8 bit value)
-rtdm_write(io, buffer, mapdict["your_symbol_name"]) # write array
+rtdm_write(rtdminterface, 0x1234, :your_symbol_name) # write 16 bit value
+rtdm_write(rtdminterface, 0x12,   :your_symbol_name) # write 8 bit value)
+rtdm_write(rtdminterface, buffer, :your_symbol_name) # write array
 ```

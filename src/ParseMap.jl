@@ -31,7 +31,7 @@ end
 
 function microchip_parsemap(filenameorprojectdirectory::ASCIIString, maptype::ASCIIString = "production")
   filename = returnvalidmapfile(filenameorprojectdirectory)
-  symboldict = Dict{ASCIIString,UInt32}()
+  symboldict = Dict{Symbol,UInt32}()
   open(filename) do iofile
     line = readline(iofile)
     while ~ismatch(r"External Symbols in Data Memory \(by address\):",line) && ~eof(iofile)
@@ -44,7 +44,7 @@ function microchip_parsemap(filenameorprojectdirectory::ASCIIString, maptype::AS
     while m!=nothing  && ~eof(iofile)
       address = m.captures[1]
       name = m.captures[2]
-      push!(symboldict,name=>parse(UInt32,address,16))
+      push!(symboldict,symbol(name)=>parse(UInt32,address,16))
       line = readline(iofile)
       m = match(r"0x([0-9a-f]{4,4})\s*_(\S*)",line)
     end

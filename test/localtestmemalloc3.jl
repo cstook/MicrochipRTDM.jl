@@ -11,7 +11,7 @@ setlatencytimer(io,2); #Should speed things up a little
 rtdminterface = RTDMInterface(mapdict,io)
 
 
-const address = UInt32(mapdict["offsetP3"])
+const address = UInt32(mapdict[:offsetP3])
 const buffer = [0x1234]
 function f()
   for i in 1:1000
