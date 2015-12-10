@@ -107,6 +107,7 @@ const clsc_writereplybuffer = Array(UInt8,length(linkok))
 
 function isrtdmok(i::RTDMInterface; retry = 1)
   errorcode = -99
+  crc = 0x0000
   for attempt in 1:retry
     resetcrc!(i)
     writewithcrc(i,communication_link_sanity_check)
