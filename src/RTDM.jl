@@ -27,10 +27,11 @@ immutable RTDMInterface
   buffer4 :: Array{UInt8,1}
   buffer6 :: Array{UInt8,1}
   buffer20 :: Array{UInt8,1}
+  buffercrc :: Array{UInt16,1}
   crc :: CRC
   function RTDMInterface(addressdict::Dict{ASCIIString,UInt32}, iouart::IO)
     new(addressdict, iouart, PipeBuffer(), 
-      Array(UInt8,4), Array(UInt8,6), Array(UInt8,20),CRC(0xffff,0x00))
+      Array(UInt8,4), Array(UInt8,6), Array(UInt8,20),Array(UInt16,1),CRC(0xffff,0x00))
   end
 end
 
@@ -83,14 +84,14 @@ function checkforerrorcode(i::RTDMInterface)
   resetcrc!(i)
   errorcode = 0
   replycode = readwithcrc(i,UInt8)
-  if replycode != UInt8('+')
+  if replycode != 0x2b  # '+'
     readwithcrc!(i, i.buffer4)
     crc = readwithcrc(i, UInt16, computecrc = false)
-    if i.buffer4[1] != UInt8('$')
+    if i.buffer4[1] != 0x24 # '$'
       errorcode = -1
-    elseif i.buffer4[2] != UInt8('E')
+    elseif i.buffer4[2] != 0x45 # 'E'
       errorcode = -1
-    elseif i.buffer4[4] != UInt8('#')
+    elseif i.buffer4[4] != 0x23 # '#'
       errorcode = -1
     elseif crc != getcrc(i)
       errorcode = -2
@@ -110,13 +111,13 @@ function isrtdmok(i::RTDMInterface; retry = 1)
   crc = 0x0000
   for attempt in 1:retry
     resetcrc!(i)
-    writewithcrc(i,communication_link_sanity_check)
-    writewithcrc(i,getcrc(i),computecrc = false)
+    writewithcrc(i, communication_link_sanity_check)
+    writewithcrc(i,getcrc(i), computecrc = false)
     errorcode = checkforerrorcode(i)
     if errorcode == 0
       readwithcrc!(i, i.buffer6)
-      crc = readwithcrc(i,UInt16, computecrc = false)
-      if crc != getcrc(i)
+      readwithcrc!(i, i.buffercrc)
+      if getcrc(i) != i.buffercrc # did crc match?
         errorcode = -3
       end
     end

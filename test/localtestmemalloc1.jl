@@ -7,10 +7,13 @@ projectdirectory = "c:/Users/Chris/MPLABXProjects/lbcmcp/PWM_RTDM.x"
 mapdict = microchip_parsemap(projectdirectory,"production")
 uartconfig1 = UARTConfiguration(921600,8,1,"n",readtimeout = 1000,writetimeout = 1000)
 io = open(FT_DeviceIndex(0),uartconfig1)
+ft_setlatencytimer(io.ft_handle,2); #Should speed things up a little
 
 rtdminterface = RTDMInterface(mapdict,io)
 
-f() = for i in 1:100; isrtdmok(rtdminterface); end
+f() = for i in 1:100
+  isrtdmok(rtdminterface)
+end
 @time f()
 
 
