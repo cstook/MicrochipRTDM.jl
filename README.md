@@ -52,5 +52,10 @@ rtdm_write(rtdminterface, 0x12,   :your_symbol_name) # write 8 bit value)
 rtdm_write(rtdminterface, buffer, :your_symbol_name) # write array
 
 # or just specify address as Integer
-rtdm_write(rtdminterface, 0x1234, 0x00000100) 
+rtdm_write(rtdminterface, 0x1234, 0x00000100)
+```
+
+Close the interface.
+```Julia
+close(rtdminterface)
 ```
