@@ -50,6 +50,7 @@ rtdm_read!(rtdminterface, buffer, :your_symbol_name)
 rtdm_write(rtdminterface, 0x1234, :your_symbol_name) # write 16 bit value
 rtdm_write(rtdminterface, 0x12,   :your_symbol_name) # write 8 bit value)
 rtdm_write(rtdminterface, buffer, :your_symbol_name) # write array
+# need to increase default buffer size in microcontroller to write large arrays
 
 # or just specify address as Integer
 rtdm_write(rtdminterface, 0x1234, 0x00000100)
