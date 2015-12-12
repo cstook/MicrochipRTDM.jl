@@ -270,14 +270,14 @@ end
 
 
 function rtdm_write(i::RTDMInterface, data, address::Symbol; retry = 1)
-  rtdm_write(i, data, i.address[address]; retry = 1)
+  rtdm_write(i, data, i.address[address]; retry = retry)
 end
 function rtdm_write{T}(i::RTDMInterface, buffer::Array{T}, address::Symbol; retry = 1)
-  rtdm_write(i, buffer, i.address[address]; retry = 1)
+  rtdm_write(i, buffer, i.address[address]; retry = retry)
 end
 function rtdm_read!{T}(i::RTDMInterface, buffer::Array{T}, address::Symbol; retry = 1)
-  rtdm_read!(i, buffer, i.address[address]; retry = 1)
+  rtdm_read!(i, buffer, i.address[address]; retry = retry)
 end
 function rtdm_read{T}(i::RTDMInterface, ::Type{T}, address::Symbol; retry = 1)
-  rtdm_read(i, T, i.address[address]; retry = 1)
+  rtdm_read(i, T, i.address[address]; retry = retry)
 end
