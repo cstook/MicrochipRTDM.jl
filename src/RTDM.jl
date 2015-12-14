@@ -82,32 +82,6 @@ function loadpipe(i::RTDMInterface, bytestoload::Integer, last2crc = bytestoload
   return nothing
 end
 
-#=
-function writewithcrc(i::RTDMInterface, data; computecrc = true)
-  write(i.iouart,data)
-  if computecrc
-    pipecrc!(i, data)
-  end
-  return nothing
-end
-
-function readwithcrc{T}(i::RTDMInterface, ::Type{T}; computecrc = true)
-  data = read(i.iouart, T)
-  if computecrc
-    pipecrc!(i, data)
-  end
-  return data
-end
-
-function readwithcrc!{T}(i::RTDMInterface, data::Array{T}; computecrc = true)
-  read!(i.iouart, data)
-  if computecrc
-    pipecrc!(i, data)
-  end
-  return nothing
-end
-=#
-
 function resetcrc!(i::RTDMInterface)
   i.crc.crc = 0xffff
   return nothing
@@ -122,12 +96,10 @@ function checkforerrorcode(i::RTDMInterface)
   # returns errorcode and crc up to this point
   resetcrc!(i)
   errorcode = 0
-  #replycode = readwithcrc(i,UInt8)
   loadpipe(i,1)
   replycode = read(i.iopipe, UInt8)
+  print(replycode)
   if replycode != 0x2b  # '+'
-    #readwithcrc!(i, i.buffer4)
-    #readwithcrc!(i, i.buffercrc, computecrc = false)
     loadpipe(i,6)
     read!(i.iopipe, i.buffer4)
     read!(i.iopipe, i.buffercrc)
@@ -154,8 +126,6 @@ function isrtdmok(i::RTDMInterface; retry = 1)
   errorcode = -99
   for attempt in 1:retry
     resetcrc!(i)
-    #writewithcrc(i, communication_link_sanity_check)
-    #writewithcrc(i,getcrc(i), computecrc = false)
     write(i.iopipe, communication_link_sanity_check)
     sendpipewithcrc(i)
     errorcode = checkforerrorcode(i)
@@ -190,22 +160,14 @@ function rtdm_read{T}(i::RTDMInterface, ::Type{T}, address::Integer; retry = 1)
     write(i.iopipe, buffersize16)
     write(i.iopipe, endofmessage)
     sendpipewithcrc(i)
-    # writewithcrc(i, startreadrequest)
-    # writewithcrc(i, address32)
-    # writewithcrc(i, buffersize16)
-    # writewithcrc(i, endofmessage)
-    # writewithcrc(i, getcrc(i), computecrc = false)
     # process reply
     errorcode = checkforerrorcode(i)
     if errorcode == 0
       loadpipe(i, sizeof(T) + 4)
       read!(i.iopipe, i.buffer1)
-      #readwithcrc!(i, i.buffer1)  # read start code
       data = read(i.iopipe, T)
       read!(i.iopipe, i.buffer1)
       read!(i.iopipe, i.buffercrc)
-      #readwithcrc!(i, i.buffer1) # read end code
-      #readwithcrc!(i, i.buffercrc, computecrc = false)
       if getcrc(i) != i.buffercrc[1]
         errorcode = -4
       end
@@ -252,8 +214,6 @@ end
 
 const startwrite = b"$M"
 const endofwrite = b"#"
-# const replyok = b"$OK#"
-# const replyokcrc = 0x084c # rtdm_crc(b"+$OK#")
 
 function rtdm_write{T}(i::RTDMInterface, buffer::Array{T}, address::Integer; retry = 1)
   address32 = UInt32(address)
