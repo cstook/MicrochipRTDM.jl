@@ -98,7 +98,6 @@ function checkforerrorcode(i::RTDMInterface)
   errorcode = 0
   loadpipe(i,1)
   replycode = read(i.iopipe, UInt8)
-  print(replycode)
   if replycode != 0x2b  # '+'
     loadpipe(i,6)
     read!(i.iopipe, i.buffer4)
