@@ -21,7 +21,7 @@ const address = mapdict[:offsetP3]
 const buffer = Array(UInt16,1)
 const buffer2 = Array(UInt8,128)
 const buffer3 = Array(UInt8,9)
-i = UInt16(1)  # 35 is bad value
+i = UInt16(35)  # 35 is bad value
 
 rtdm_write(rtdminterface, i, :DTRB, retry = r)
 
