@@ -10,9 +10,9 @@ using FTD2XX
 460800
 921600
 =#
-projectdirectory = "c:/Users/Chris/MPLABXProjects/lbcmcp/PWM_RTDM.x"
-mapdict = microchip_parsemap(projectdirectory,"production")
-uartconfig1 = UARTConfiguration(921600,8,1,"n",readtimeout = 1000,writetimeout = 1000)
+const projectdirectory = "c:/Users/Chris/MPLABXProjects/lbcmcp/PWM_RTDM.x"
+const mapdict = microchip_parsemap(projectdirectory,"production")
+const uartconfig1 = UARTConfiguration(921600,8,1,"n",readtimeout = 1000,writetimeout = 1000)
 const r = 1
 const address = mapdict[:offsetP3]
 const buffer = Array(UInt16,1)
