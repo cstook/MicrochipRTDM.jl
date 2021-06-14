@@ -4,7 +4,7 @@
 
 MichrochipRTDM.jl is a bunch of functions usefull for working with [Microchip's](http://www.microchip.com)<sup>TM</sup> [RTDM](http://ww1.microchip.com/downloads/en/DeviceDoc/70567A.pdf) interface in julia.
 
-##Installation
+## Installation
 
 MicrochipRTDM.jl is currently unregistered.  It can be installed using ```Pkg.clone```.
 ```julia
@@ -12,7 +12,7 @@ Pkg.clone("https://github.com/cstook/MicrochipRTDM.jl.git")
 ```
 The [julia documentation](http://docs.julialang.org) section on installing unregistered [packages](http://docs.julialang.org/en/release-0.4/manual/packages/#packages) provides more information.
 
-##Usage
+## Usage
 
 Load the module.
 ```julia
